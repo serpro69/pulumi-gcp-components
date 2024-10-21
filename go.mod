@@ -1,6 +1,10 @@
-module github.com/serpro69/pulumi-google-components/v0
+module github.com/serpro69/pulumi-google-components
 
 go 1.23.1
+
+retract (
+	v0.1.0 // Published accidentally.
+)
 
 require github.com/pulumi/pulumi/sdk/v3 v3.137.0
 

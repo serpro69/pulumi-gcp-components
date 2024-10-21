@@ -8,7 +8,7 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/projects"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumiverse/pulumi-time/sdk/go/time"
-	"github.com/serpro69/pulumi-google-components/v0/project/vars"
+	"github.com/serpro69/pulumi-google-components/project/vars"
 )
 
 // ProjectServices is a struct that represents a GCP project with an array of enabled services

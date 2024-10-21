@@ -7,8 +7,8 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/projects"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumiverse/pulumi-time/sdk/go/time"
-	"github.com/serpro69/pulumi-google-components/v0/project/services"
-	"github.com/serpro69/pulumi-google-components/v0/project/vars"
+	"github.com/serpro69/pulumi-google-components/project/services"
+	"github.com/serpro69/pulumi-google-components/project/vars"
 )
 
 // Project is a struct that represents a project in GCP
