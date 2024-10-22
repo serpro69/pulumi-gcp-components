@@ -8,7 +8,7 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumiverse/pulumi-time/sdk/go/time"
 	"github.com/serpro69/pulumi-google-components/project/services"
-	"github.com/serpro69/pulumi-google-components/project/utils"
+	"github.com/serpro69/pulumi-google-components/project/util"
 	"github.com/serpro69/pulumi-google-components/project/vars"
 )
 
@@ -27,7 +27,7 @@ func NewProject(
 	opts ...pulumi.ResourceOption,
 ) (*Project, error) {
 	p := &Project{name: name}
-	if err := ctx.RegisterComponentResource(utils.Project.String(), name, p, opts...); err != nil {
+	if err := ctx.RegisterComponentResource(util.Project.String(), name, p, opts...); err != nil {
 		return nil, err
 	}
 	mainProject, err := organizations.NewProject(ctx, name,

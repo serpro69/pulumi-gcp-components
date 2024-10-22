@@ -8,7 +8,7 @@ import (
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/projects"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumiverse/pulumi-time/sdk/go/time"
-	"github.com/serpro69/pulumi-google-components/project/utils"
+	"github.com/serpro69/pulumi-google-components/project/util"
 	"github.com/serpro69/pulumi-google-components/project/vars"
 )
 
@@ -33,7 +33,7 @@ func ActivateApis(
 
 	pid := args.ProjectId.ToStringOutput()
 	ps := &ProjectServices{ProjectId: &pid}
-	if err := ctx.RegisterComponentResource(utils.Services.String(), name, ps, opts...); err != nil {
+	if err := ctx.RegisterComponentResource(util.Services.String(), name, ps, opts...); err != nil {
 		return nil, err
 	}
 

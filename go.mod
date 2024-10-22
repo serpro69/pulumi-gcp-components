@@ -2,11 +2,15 @@ module github.com/serpro69/pulumi-google-components
 
 go 1.23.1
 
-retract (
-	v0.1.0 // Published accidentally.
+retract v0.1.0 // Published accidentally.
+
+require (
+	github.com/joho/godotenv v1.5.1
+	github.com/pulumi/pulumi-random/sdk/v4 v4.16.7
+	github.com/pulumi/pulumi/sdk/v3 v3.137.0
 )
 
-require github.com/pulumi/pulumi/sdk/v3 v3.137.0
+require github.com/spf13/cast v1.4.1 // indirect
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
