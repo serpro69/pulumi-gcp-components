@@ -63,6 +63,7 @@ func NewProject(
 	apis, err := services.ActivateApis(ctx, name, args.ToProjectServicesArgs(),
 		pulumi.Parent(p),
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
+		pulumi.DeletedWith(p.Main),
 	)
 	if err != nil {
 		return nil, err
@@ -71,7 +72,6 @@ func NewProject(
 	// Create IAM members
 	if _, err := newIamMember(ctx, p, "owner", args.Owners,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
-		pulumi.DeletedWith(p),
 	); err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func newIamMember(ctx *pulumi.Context, parent *Project, role string, members pul
 				Role:    pulumi.String(fmt.Sprintf("roles/%s", role)),
 				Member:  m,
 			},
-			append(opts, pulumi.Parent(parent))...,
+			append(opts, pulumi.Parent(parent), pulumi.DeletedWith(parent.Main))...,
 		); err != nil {
 			return nil, err
 		} else {
