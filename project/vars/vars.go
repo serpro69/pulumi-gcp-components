@@ -37,7 +37,7 @@ type ProjectArgs struct {
 	// Project APIs
 
 	// The list of apis to activate within the project
-	ActivateApis pulumi.StringArray
+	ActivateApis pulumi.StringArrayInput
 	// Whether project services will be disabled when the resources are destroyed.
 	// https://www.terraform.io/docs/providers/google/r/google_project_service.html#disable_on_destroy
 	DisableServicesOnDestroy bool
@@ -61,9 +61,12 @@ func (pa *ProjectArgs) ToProjectServicesArgs() *ProjectServicesArgs {
 		DisableDependentServices: pa.DisableDependentServices,
 	}
 	if !pa.DisableComputeEngine {
-		if !slices.Contains(args.ActivateApis, pulumi.StringInput(pulumi.String("compute.googleapis.com"))) {
-			args.ActivateApis = append(args.ActivateApis, pulumi.String("compute.googleapis.com"))
-		}
+		args.ActivateApis = args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) []string {
+			if !slices.Contains(apis, "compute.googleapis.com") {
+				return append(apis, "compute.googleapis.com")
+			}
+			return apis
+		}).(pulumi.StringArrayInput)
 	}
 	return args
 }
@@ -91,7 +94,7 @@ type ProjectServicesArgs struct {
 	// Mandatory value. An error will be returned if ProjectId is not set.
 	ProjectId pulumi.StringInput
 	// The list of apis to activate within the project
-	ActivateApis pulumi.StringArray
+	ActivateApis pulumi.StringArrayInput
 	// If `true`, disable the service when the resource is destroyed.
 	// Defaults to `true`.
 	// https://www.terraform.io/docs/providers/google/r/google_project_service.html#disable_on_destroy

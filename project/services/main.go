@@ -86,11 +86,11 @@ func ActivateApis(
 	// })
 
 	var press []pulumi.Resource
-	var pouts []pulumi.Output
 
 	// enable APIs
-	for _, api := range args.ActivateApis {
-		ao := api.ToStringOutput().ApplyT(func(a string) (interface{}, error) {
+	pouts := args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) ([]projects.ServiceOutput, error) {
+		var oo []projects.ServiceOutput
+		for _, a := range apis {
 			s, err := projects.NewService(ctx, a,
 				&projects.ServiceArgs{
 					Project:                  args.ProjectId,
@@ -98,17 +98,18 @@ func ActivateApis(
 					DisableOnDestroy:         pulumi.Bool(args.DisableOnDestroy),
 					DisableDependentServices: pulumi.Bool(args.DisableDependentServices),
 				},
-				pulumi.Parent(ps))
+				pulumi.Parent(ps),
+				pulumi.DeletedWith(ps),
+			)
 			if err != nil {
 				return nil, err
 			}
 			ps.Services = append(ps.Services, s)
 			press = append(press, s)
-			return s.ToServiceOutput(), nil
-		})
-
-		pouts = append(pouts, ao)
-	}
+			oo = append(oo, s.ToServiceOutput())
+		}
+		return oo, nil
+	})
 
 	// wait for services outputs before sleeping
 	// credits: https://www.pulumi.com/ai/conversations/0225f449-28f4-4d5d-bbd6-e05673d76a86
@@ -128,6 +129,7 @@ func ActivateApis(
 				// },
 			},
 			pulumi.Parent(ps),
+			pulumi.DeletedWith(ps),
 			pulumi.DependsOn(press),
 		)
 		if err != nil {

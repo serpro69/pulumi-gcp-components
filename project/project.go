@@ -53,6 +53,7 @@ func NewProject(
 			CreateDuration: pulumi.String("30s"),
 		},
 		pulumi.Parent(p),
+		pulumi.DeletedWith(p.Main),
 		pulumi.DependsOn([]pulumi.Resource{mainProject}),
 	)
 	if err != nil {
