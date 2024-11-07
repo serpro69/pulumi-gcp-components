@@ -46,6 +46,19 @@ func NewFirebaseProject(
 	}
 	p.Project = proj.Main
 
+	pulumi.All(proj.Main.ProjectId, proj.Main.Number).ApplyT(func(all []interface{}) error {
+		projectId := all[0].(string)
+		projectNumber := all[1].(string)
+		configureIAM(ctx, name, projectId, projectNumber, args.ProjectIamArgs, pulumi.Parent(p), pulumi.DeletedWith(proj.Main))
+		return nil
+	})
+
+	if err := ctx.RegisterResourceOutputs(p, pulumi.Map{
+		"projectId": proj.Main.ProjectId.ToStringOutput(),
+	}); err != nil {
+		return nil, err
+	}
+
 	return p, nil
 }
 
