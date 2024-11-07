@@ -95,7 +95,7 @@ func ActivateApis(
 				&projects.ServiceArgs{
 					Project:                  args.ProjectId,
 					Service:                  pulumi.String(a),
-					DisableOnDestroy:         pulumi.Bool(args.DisableOnDestroy),
+					DisableOnDestroy:         pulumi.Bool(args.DisableServicesOnDestroy),
 					DisableDependentServices: pulumi.Bool(args.DisableDependentServices),
 				},
 				pulumi.Parent(ps),

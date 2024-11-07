@@ -61,7 +61,7 @@ func NewProject(
 	}
 
 	// Activate Services
-	apis, err := services.ActivateApis(ctx, name, args.ToProjectServicesArgs(),
+	apis, err := services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
 		pulumi.Parent(p),
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 		pulumi.DeletedWith(p.Main),
