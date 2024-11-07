@@ -15,9 +15,8 @@ import (
 // ProjectServices is a struct that represents a GCP project with an array of enabled services
 type ProjectServices struct {
 	pulumi.ResourceState
-	projects.ServiceState
-	ProjectId *pulumi.StringOutput
-	Services  []*projects.Service
+
+	projects.ServiceArray
 }
 
 func ActivateApis(
@@ -31,9 +30,9 @@ func ActivateApis(
 		return nil, errors.New("ProjectId is mandatory")
 	}
 
-	pid := args.ProjectId.ToStringOutput()
-	ps := &ProjectServices{ProjectId: &pid}
-	if err := ctx.RegisterComponentResource(util.Services.String(), name, ps, opts...); err != nil {
+	ps := &ProjectServices{}
+	err := ctx.RegisterComponentResource(util.Services.String(), name, ps, opts...)
+	if err != nil {
 		return nil, err
 	}
 
@@ -104,7 +103,7 @@ func ActivateApis(
 			if err != nil {
 				return nil, err
 			}
-			ps.Services = append(ps.Services, s)
+			ps.ServiceArray = append(ps.ServiceArray, s)
 			press = append(press, s)
 			oo = append(oo, s.ToServiceOutput())
 		}
@@ -142,7 +141,7 @@ func ActivateApis(
 	// https://www.pulumi.com/docs/iac/concepts/resources/components/#registering-component-outputs
 	if err := ctx.RegisterResourceOutputs(ps, pulumi.Map{
 		"projectId": args.ProjectId.ToStringOutput(),
-		"services":  ps,
+		"services":  ps.ServiceArray,
 		"waits":     wfs,
 		"triggers": wfs.ApplyT(func(sleep *time.Sleep) (pulumi.StringPtrOutput, error) {
 			so := sleep.Triggers.ApplyT(func(triggers map[string]string) (*string, error) {

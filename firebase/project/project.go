@@ -1,7 +1,6 @@
 package project
 
 import (
-	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/organizations"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/serpro69/pulumi-google-components/firebase/project/util"
 	"github.com/serpro69/pulumi-google-components/firebase/project/vars"
@@ -12,8 +11,8 @@ import (
 // FirebaseProject is a struct that represents a project with enabled Firebase support in GCP
 type FirebaseProject struct {
 	pulumi.ResourceState
-	name    string
-	Project *organizations.Project
+
+	*project.Project
 }
 
 // NewProject creates a new Project in GCP
@@ -23,8 +22,9 @@ func NewFirebaseProject(
 	args *vars.ProjectArgs,
 	opts ...pulumi.ResourceOption,
 ) (*FirebaseProject, error) {
-	p := &FirebaseProject{name: name}
-	if err := ctx.RegisterComponentResource(util.Project.String(), name, p, opts...); err != nil {
+	p := &FirebaseProject{}
+	err := ctx.RegisterComponentResource(util.Project.String(), name, p, opts...)
+	if err != nil {
 		return nil, err
 	}
 
@@ -41,21 +41,20 @@ func NewFirebaseProject(
 		return utils.Unique(apis)
 	}).(pulumi.StringArrayInput)
 
-	proj, err := project.NewProject(ctx, name, &args.ProjectArgs, pulumi.Parent(p))
-	if err != nil {
+	if p.Project, err = project.NewProject(ctx, name, &args.ProjectArgs, pulumi.Parent(p)); err != nil {
 		return nil, err
 	}
-	p.Project = proj.Main
 
-	pulumi.All(proj.Main.ProjectId, proj.Main.Number).ApplyT(func(all []interface{}) error {
+	// add proj to wait until project is fully created (and services are enabled)
+	pulumi.All(p.Project.Main.ProjectId, p.Project.Main.Number, p.Project).ApplyT(func(all []interface{}) error {
 		projectId := all[0].(string)
 		projectNumber := all[1].(string)
-		configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(), pulumi.Parent(p), pulumi.DeletedWith(proj.Main))
+		configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(), pulumi.Parent(p), pulumi.DeletedWith(p.Project))
 		return nil
 	})
 
 	if err := ctx.RegisterResourceOutputs(p, pulumi.Map{
-		"projectId": proj.Main.ProjectId.ToStringOutput(),
+		"projectId": p.Project.Main.ProjectId.ToStringOutput(),
 	}); err != nil {
 		return nil, err
 	}

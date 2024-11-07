@@ -15,8 +15,11 @@ import (
 // Project is a struct that represents a project in GCP
 type Project struct {
 	pulumi.ResourceState
-	name string
+
+	// TODO: can't use composition via `*organizations.Project` because it's in turn composed of `pulumi.CustomResourceState`, which contains `getProviders()` method that needs to be implemented?
+
 	Main *organizations.Project
+	projects.ServiceArray
 }
 
 // NewProject creates a new Project in GCP
@@ -26,11 +29,12 @@ func NewProject(
 	args *vars.ProjectArgs,
 	opts ...pulumi.ResourceOption,
 ) (*Project, error) {
-	p := &Project{name: name}
-	if err := ctx.RegisterComponentResource(util.Project.String(), name, p, opts...); err != nil {
+	p := &Project{}
+	err := ctx.RegisterComponentResource(util.Project.String(), name, p, opts...)
+	if err != nil {
 		return nil, err
 	}
-	mainProject, err := organizations.NewProject(ctx, name,
+	p.Main, err = organizations.NewProject(ctx, name,
 		&organizations.ProjectArgs{
 			BillingAccount:    args.BillingAccount,
 			FolderId:          args.FolderId,
@@ -45,7 +49,6 @@ func NewProject(
 	if err != nil {
 		return nil, err
 	}
-	p.Main = mainProject
 
 	// https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/google_project_service#mitigation---adding-sleeps
 	wfp, err := time.NewSleep(ctx, fmt.Sprintf("%s/wait-for-project", name),
@@ -54,34 +57,35 @@ func NewProject(
 		},
 		pulumi.Parent(p),
 		pulumi.DeletedWith(p.Main),
-		pulumi.DependsOn([]pulumi.Resource{mainProject}),
+		pulumi.DependsOn([]pulumi.Resource{p.Main}),
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	// Activate Services
-	apis, err := services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
+	if ps, err := services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
 		pulumi.Parent(p),
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 		pulumi.DeletedWith(p.Main),
-	)
-	if err != nil {
+	); err != nil {
 		return nil, err
+	} else {
+		p.ServiceArray = ps.ServiceArray
 	}
 
 	// Create IAM members
-	if _, err := newIamMember(ctx, p, "owner", args.Owners,
+	if _, err := newIamMember(ctx, name, p, "owner", args.Owners,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 	); err != nil {
 		return nil, err
 	}
-	if _, err := newIamMember(ctx, p, "editor", args.Editors,
+	if _, err := newIamMember(ctx, name, p, "editor", args.Editors,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 	); err != nil {
 		return nil, err
 	}
-	if _, err := newIamMember(ctx, p, "viewer", args.Viewers,
+	if _, err := newIamMember(ctx, name, p, "viewer", args.Viewers,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 	); err != nil {
 		return nil, err
@@ -89,9 +93,9 @@ func NewProject(
 
 	err = ctx.RegisterResourceOutputs(p,
 		pulumi.Map{
-			"main": mainProject,
+			"main": p.Main,
 			"wait": wfp,
-			"apis": apis,
+			"apis": p.ServiceArray,
 		})
 	if err != nil {
 		return nil, err
@@ -100,10 +104,10 @@ func NewProject(
 }
 
 // newIamMember creates a list of IAM members in a GCP Project with a given role
-func newIamMember(ctx *pulumi.Context, parent *Project, role string, members pulumi.StringArray, opts ...pulumi.ResourceOption) ([]*projects.IAMMember, error) {
+func newIamMember(ctx *pulumi.Context, name string, parent *Project, role string, members pulumi.StringArray, opts ...pulumi.ResourceOption) ([]*projects.IAMMember, error) {
 	mm := []*projects.IAMMember{}
 	for _, m := range members {
-		if res, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", parent.name, role, m),
+		if res, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", name, role, m),
 			&projects.IAMMemberArgs{
 				Project: parent.Main.ProjectId,
 				Role:    pulumi.String(fmt.Sprintf("roles/%s", role)),
