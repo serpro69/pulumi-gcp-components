@@ -45,11 +45,14 @@ func NewFirebaseProject(
 		return nil, err
 	}
 
-	// add proj to wait until project is fully created (and services are enabled)
-	pulumi.All(p.Project.Main.ProjectId, p.Project.Main.Number, p.Project).ApplyT(func(all []interface{}) error {
+	pulumi.All(p.Project.Main.ProjectId, p.Project.Main.Number).ApplyT(func(all []interface{}) error {
 		projectId := all[0].(string)
 		projectNumber := all[1].(string)
-		configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(), pulumi.Parent(p), pulumi.DeletedWith(p.Project))
+		configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(),
+			pulumi.Parent(p),
+			pulumi.DependsOn([]pulumi.Resource{p.ProjectServices}),
+			pulumi.DeletedWith(p.Project),
+		)
 		return nil
 	})
 

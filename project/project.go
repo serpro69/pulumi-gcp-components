@@ -19,7 +19,7 @@ type Project struct {
 	// TODO: can't use composition via `*organizations.Project` because it's in turn composed of `pulumi.CustomResourceState`, which contains `getProviders()` method that needs to be implemented?
 
 	Main *organizations.Project
-	projects.ServiceArray
+	*services.ProjectServices
 }
 
 // NewProject creates a new Project in GCP
@@ -64,14 +64,12 @@ func NewProject(
 	}
 
 	// Activate Services
-	if ps, err := services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
+	if p.ProjectServices, err = services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
 		pulumi.Parent(p),
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 		pulumi.DeletedWith(p.Main),
 	); err != nil {
 		return nil, err
-	} else {
-		p.ServiceArray = ps.ServiceArray
 	}
 
 	// Create IAM members
@@ -95,7 +93,7 @@ func NewProject(
 		pulumi.Map{
 			"main": p.Main,
 			"wait": wfp,
-			"apis": p.ServiceArray,
+			"apis": p.ProjectServices,
 		})
 	if err != nil {
 		return nil, err
