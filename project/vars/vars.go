@@ -73,10 +73,7 @@ func DefaultProjectArgs() *ProjectArgs {
 	return &ProjectArgs{
 		AutoCreateNetwork:    pulumi.Bool(false),
 		DisableComputeEngine: false,
-		projectServicesArgs: &projectServicesArgs{
-			DisableServicesOnDestroy: true,
-			DisableDependentServices: true,
-		},
+		projectServicesArgs:  defaultProjectServicesArgs(),
 	}
 }
 
@@ -94,6 +91,13 @@ type projectServicesArgs struct {
 	// If `false` or unset, an error will be generated if any enabled services depend on this service when destroying it.
 	// https://www.terraform.io/docs/providers/google/r/google_project_service.html#disable_dependent_services
 	DisableDependentServices bool
+}
+
+func defaultProjectServicesArgs() *projectServicesArgs {
+	return &projectServicesArgs{
+		DisableServicesOnDestroy: true,
+		DisableDependentServices: true,
+	}
 }
 
 type ProjectServicesArgs struct {

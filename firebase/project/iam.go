@@ -38,38 +38,40 @@ func configureIAM(
 		return nil, err
 	}
 
-	if len(args.ComputeServiceAccountRoles) > 0 {
-		for _, role := range args.ComputeServiceAccountRoles {
+	args.ComputeServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) error {
+		for _, role := range roles {
 			_, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", name, role, dsa.Member),
 				&projects.IAMMemberArgs{
 					Project: pulumi.String(dsa.Project),
-					Role:    pulumi.String("roles/" + role),
+					Role:    pulumi.String(fmt.Sprintf("roles/%v", role)),
 					Member:  pulumi.String(dsa.Member),
 				},
 				pulumi.Parent(fpIam),
 			)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
-	}
+		return nil
+	})
 
-	if len(args.PubSubServiceAccountRoles) > 0 {
+	args.PubSubServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) error {
 		m := fmt.Sprintf("serviceAccount:service-%s@gcp-sa-pubsub.iam.gserviceaccount.com", projectNumber)
-		for _, role := range args.PubSubServiceAccountRoles {
+		for _, role := range roles {
 			_, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", name, role, m),
 				&projects.IAMMemberArgs{
-					Project: pulumi.String(projectId),
-					Role:    pulumi.String("roles/" + role),
+					Project: pulumi.String(dsa.Project),
+					Role:    pulumi.String(fmt.Sprintf("roles/%v", role)),
 					Member:  pulumi.String(m),
 				},
 				pulumi.Parent(fpIam),
 			)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
-	}
+		return nil
+	})
 
 	if err := ctx.RegisterResourceOutputs(fpIam, pulumi.Map{
 		"defaultComputeSA": pulumi.String(dsa.Member),

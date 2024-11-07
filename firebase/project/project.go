@@ -6,6 +6,7 @@ import (
 	"github.com/serpro69/pulumi-google-components/firebase/project/util"
 	"github.com/serpro69/pulumi-google-components/firebase/project/vars"
 	"github.com/serpro69/pulumi-google-components/project"
+	"github.com/serpro69/pulumi-google-components/utils"
 )
 
 // FirebaseProject is a struct that represents a project with enabled Firebase support in GCP
@@ -37,7 +38,7 @@ func NewFirebaseProject(
 
 	args.ActivateApis = args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) []string {
 		apis = append(apis, services...)
-		return unique(apis)
+		return utils.Unique(apis)
 	}).(pulumi.StringArrayInput)
 
 	proj, err := project.NewProject(ctx, name, &args.ProjectArgs, pulumi.Parent(p))
@@ -49,7 +50,7 @@ func NewFirebaseProject(
 	pulumi.All(proj.Main.ProjectId, proj.Main.Number).ApplyT(func(all []interface{}) error {
 		projectId := all[0].(string)
 		projectNumber := all[1].(string)
-		configureIAM(ctx, name, projectId, projectNumber, args.ProjectIamArgs, pulumi.Parent(p), pulumi.DeletedWith(proj.Main))
+		configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(), pulumi.Parent(p), pulumi.DeletedWith(proj.Main))
 		return nil
 	})
 
@@ -60,18 +61,6 @@ func NewFirebaseProject(
 	}
 
 	return p, nil
-}
-
-func unique[T any](slice []T) []T {
-	seen := make(map[any]struct{})
-	var result []T
-	for _, v := range slice {
-		if _, ok := seen[v]; !ok {
-			seen[v] = struct{}{}
-			result = append(result, v)
-		}
-	}
-	return result
 }
 
 var services = []string{
