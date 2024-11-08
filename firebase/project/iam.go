@@ -38,17 +38,15 @@ func configureIAM(
 		return nil, err
 	}
 
-	csaOut := args.ComputeServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]projects.IAMMemberOutput, error) {
+	csaOut := addMemberRoles(ctx, fpIam, dsa.Project, dsa.Member, args.ComputeServiceAccountRoles)
+	psaOut := addMemberRoles(ctx, fpIam, dsa.Project,
+		fmt.Sprintf("serviceAccount:service-%s@gcp-sa-pubsub.iam.gserviceaccount.com", projectNumber),
+		args.PubSubServiceAccountRoles)
+
+	admins := args.FirebaseAdminMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]projects.IAMMemberOutput, error) {
 		var mm []projects.IAMMemberOutput
-		for _, role := range roles {
-			m, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", name, role, dsa.Member),
-				&projects.IAMMemberArgs{
-					Project: pulumi.String(dsa.Project),
-					Role:    pulumi.String(fmt.Sprintf("roles/%v", role)),
-					Member:  pulumi.String(dsa.Member),
-				},
-				pulumi.Parent(fpIam),
-			)
+		for _, member := range members {
+			m, err := addMemberRole(ctx, fpIam, projectId, member, "firebase.admin")
 			if err != nil {
 				return nil, err
 			}
@@ -57,18 +55,10 @@ func configureIAM(
 		return mm, nil
 	})
 
-	psaOut := args.PubSubServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]projects.IAMMemberOutput, error) {
-		sa := fmt.Sprintf("serviceAccount:service-%s@gcp-sa-pubsub.iam.gserviceaccount.com", projectNumber)
+	viewers := args.FirebaseViewerMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]projects.IAMMemberOutput, error) {
 		var mm []projects.IAMMemberOutput
-		for _, role := range roles {
-			m, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", name, role, sa),
-				&projects.IAMMemberArgs{
-					Project: pulumi.String(dsa.Project),
-					Role:    pulumi.String(fmt.Sprintf("roles/%v", role)),
-					Member:  pulumi.String(sa),
-				},
-				pulumi.Parent(fpIam),
-			)
+		for _, member := range members {
+			m, err := addMemberRole(ctx, fpIam, projectId, member, "firebase.viewer")
 			if err != nil {
 				return nil, err
 			}
@@ -78,9 +68,8 @@ func configureIAM(
 	})
 
 	// // wait for iammember outputs before sleeping
-	// // credits: https://www.pulumi.com/ai/conversations/0225f449-28f4-4d5d-bbd6-e05673d76a86
 	// w := pulumi.All(csaOut, psaOut).ApplyT(func(ss []interface{}) (*time.Sleep, error) {
-	// 	// wait for services to be enabled
+	// 	// wait for members to be added
 	// 	wfs, err := time.NewSleep(ctx, fmt.Sprintf("%s/wait", name),
 	// 		&time.SleepArgs{
 	// 			CreateDuration: pulumi.String("30s"),
@@ -113,6 +102,8 @@ func configureIAM(
 		"defaultComputeSA":           pulumi.String(dsa.Member),
 		"computeServiceAccountRoles": csaOut,
 		"pubSubServiceAccountRoles":  psaOut,
+		"adminMembers":               admins,
+		"viewerMembers":              viewers,
 		// "wait":             w,
 		// "triggers": w.ApplyT(func(sleep *time.Sleep) (pulumi.StringPtrOutput, error) {
 		// 	so := sleep.Triggers.ApplyT(func(triggers map[string]string) (*string, error) {
@@ -126,4 +117,33 @@ func configureIAM(
 	}
 
 	return fpIam, nil
+}
+
+func addMemberRoles(ctx *pulumi.Context, parent pulumi.Resource, projectId, member string, roles pulumi.StringArrayInput) pulumi.Output {
+	return roles.ToStringArrayOutput().ApplyT(func(rr []string) ([]projects.IAMMemberOutput, error) {
+		var mm []projects.IAMMemberOutput
+		for _, role := range rr {
+			m, err := addMemberRole(ctx, parent, projectId, member, role)
+			if err != nil {
+				return nil, err
+			}
+			mm = append(mm, m.ToIAMMemberOutput())
+		}
+		return mm, nil
+	})
+}
+
+func addMemberRole(ctx *pulumi.Context, parent pulumi.Resource, projectId, member, role string) (*projects.IAMMember, error) {
+	m, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v", role, member),
+		&projects.IAMMemberArgs{
+			Project: pulumi.String(projectId),
+			Role:    pulumi.String(fmt.Sprintf("roles/%v", role)),
+			Member:  pulumi.String(member),
+		},
+		pulumi.Parent(parent),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }
