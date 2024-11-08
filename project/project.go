@@ -64,11 +64,12 @@ func NewProject(
 	}
 
 	// Activate Services
-	if p.ProjectServices, err = services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
+	p.ProjectServices, err = services.ActivateApis(ctx, name, args.GetProjectServicesArgs(),
 		pulumi.Parent(p),
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 		pulumi.DeletedWith(p.Main),
-	); err != nil {
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -93,7 +94,7 @@ func NewProject(
 		pulumi.Map{
 			"main": p.Main,
 			"wait": wfp,
-			"apis": p.ProjectServices,
+			"apis": p.Services,
 		})
 	if err != nil {
 		return nil, err

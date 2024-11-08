@@ -16,7 +16,7 @@ import (
 type ProjectServices struct {
 	pulumi.ResourceState
 
-	projects.ServiceArray
+	Services projects.ServiceArrayOutput
 }
 
 func ActivateApis(
@@ -87,8 +87,8 @@ func ActivateApis(
 	var press []pulumi.Resource
 
 	// enable APIs
-	pouts := args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) ([]projects.ServiceOutput, error) {
-		var oo []projects.ServiceOutput
+	apis := args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) ([]*projects.Service, error) {
+		var ss []*projects.Service
 		for _, a := range apis {
 			s, err := projects.NewService(ctx, a,
 				&projects.ServiceArgs{
@@ -103,16 +103,15 @@ func ActivateApis(
 			if err != nil {
 				return nil, err
 			}
-			ps.ServiceArray = append(ps.ServiceArray, s)
 			press = append(press, s)
-			oo = append(oo, s.ToServiceOutput())
+			ss = append(ss, s)
 		}
-		return oo, nil
-	})
+		return ss, nil
+	}).(projects.ServiceArrayOutput)
 
 	// wait for services outputs before sleeping
 	// credits: https://www.pulumi.com/ai/conversations/0225f449-28f4-4d5d-bbd6-e05673d76a86
-	wfs := pulumi.All(pouts).ApplyT(func(ss []interface{}) (*time.Sleep, error) {
+	wfs := pulumi.All(apis).ApplyT(func(ss []interface{}) (*time.Sleep, error) {
 		// wait for services to be enabled
 		wfs, err := time.NewSleep(ctx, fmt.Sprintf("wait"),
 			&time.SleepArgs{
@@ -137,11 +136,13 @@ func ActivateApis(
 		return wfs, nil
 	}).(time.SleepOutput)
 
+	ps.Services = apis
+
 	// always register outputs, even if they're not used
 	// https://www.pulumi.com/docs/iac/concepts/resources/components/#registering-component-outputs
 	if err := ctx.RegisterResourceOutputs(ps, pulumi.Map{
 		"projectId": args.ProjectId.ToStringOutput(),
-		"services":  ps.ServiceArray,
+		"services":  apis,
 		"waits":     wfs,
 		"triggers": wfs.ApplyT(func(sleep *time.Sleep) (pulumi.StringPtrOutput, error) {
 			so := sleep.Triggers.ApplyT(func(triggers map[string]string) (*string, error) {
