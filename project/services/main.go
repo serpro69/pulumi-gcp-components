@@ -114,7 +114,7 @@ func ActivateApis(
 	// credits: https://www.pulumi.com/ai/conversations/0225f449-28f4-4d5d-bbd6-e05673d76a86
 	wfs := pulumi.All(pouts).ApplyT(func(ss []interface{}) (*time.Sleep, error) {
 		// wait for services to be enabled
-		wfs, err := time.NewSleep(ctx, fmt.Sprintf("%s/wait-for-services", name),
+		wfs, err := time.NewSleep(ctx, fmt.Sprintf("wait"),
 			&time.SleepArgs{
 				CreateDuration: pulumi.String("30s"),
 				Triggers: pulumi.StringMap{

@@ -51,7 +51,7 @@ func NewProject(
 	}
 
 	// https://registry.terraform.io/providers/hashicorp/google/latest/docs/guides/google_project_service#mitigation---adding-sleeps
-	wfp, err := time.NewSleep(ctx, fmt.Sprintf("%s/wait-for-project", name),
+	wfp, err := time.NewSleep(ctx, fmt.Sprintf("wait"),
 		&time.SleepArgs{
 			CreateDuration: pulumi.String("30s"),
 		},
@@ -73,17 +73,17 @@ func NewProject(
 	}
 
 	// Create IAM members
-	if _, err := newIamMember(ctx, name, p, "owner", args.Owners,
+	if _, err := newIamMember(ctx, p, "owner", args.Owners,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 	); err != nil {
 		return nil, err
 	}
-	if _, err := newIamMember(ctx, name, p, "editor", args.Editors,
+	if _, err := newIamMember(ctx, p, "editor", args.Editors,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 	); err != nil {
 		return nil, err
 	}
-	if _, err := newIamMember(ctx, name, p, "viewer", args.Viewers,
+	if _, err := newIamMember(ctx, p, "viewer", args.Viewers,
 		pulumi.DependsOn([]pulumi.Resource{wfp}),
 	); err != nil {
 		return nil, err
@@ -102,10 +102,10 @@ func NewProject(
 }
 
 // newIamMember creates a list of IAM members in a GCP Project with a given role
-func newIamMember(ctx *pulumi.Context, name string, parent *Project, role string, members pulumi.StringArray, opts ...pulumi.ResourceOption) ([]*projects.IAMMember, error) {
+func newIamMember(ctx *pulumi.Context, parent *Project, role string, members pulumi.StringArray, opts ...pulumi.ResourceOption) ([]*projects.IAMMember, error) {
 	mm := []*projects.IAMMember{}
 	for _, m := range members {
-		if res, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v/%v", name, role, m),
+		if res, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v", m, role),
 			&projects.IAMMemberArgs{
 				Project: parent.Main.ProjectId,
 				Role:    pulumi.String(fmt.Sprintf("roles/%s", role)),
