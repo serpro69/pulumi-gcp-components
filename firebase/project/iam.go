@@ -38,31 +38,51 @@ func configureIAM(
 		return nil, err
 	}
 
-	csaOut := addMemberRoles(ctx, fpIam, dsa.Project, dsa.Member, args.ComputeServiceAccountRoles)
-	psaOut := addMemberRoles(ctx, fpIam, dsa.Project,
-		fmt.Sprintf("serviceAccount:service-%s@gcp-sa-pubsub.iam.gserviceaccount.com", projectNumber),
-		args.PubSubServiceAccountRoles)
+	csa := args.ComputeServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]*projects.IAMMember, error) {
+		var mm []*projects.IAMMember
+		for _, role := range roles {
+			m, err := addMemberRole(ctx, fpIam, projectId, dsa.Member, role)
+			if err != nil {
+				return nil, err
+			}
+			mm = append(mm, m)
+		}
+		return mm, nil
+	})
 
-	admins := args.FirebaseAdminMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]projects.IAMMemberOutput, error) {
-		var mm []projects.IAMMemberOutput
+	psa := args.PubSubServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]*projects.IAMMember, error) {
+		sa := fmt.Sprintf("serviceAccount:service-%s@gcp-sa-pubsub.iam.gserviceaccount.com", projectNumber)
+		var mm []*projects.IAMMember
+		for _, role := range roles {
+			m, err := addMemberRole(ctx, fpIam, projectId, sa, role)
+			if err != nil {
+				return nil, err
+			}
+			mm = append(mm, m)
+		}
+		return mm, nil
+	})
+
+	admins := args.FirebaseAdminMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]*projects.IAMMember, error) {
+		var mm []*projects.IAMMember
 		for _, member := range members {
 			m, err := addMemberRole(ctx, fpIam, projectId, member, "firebase.admin")
 			if err != nil {
 				return nil, err
 			}
-			mm = append(mm, m.ToIAMMemberOutput())
+			mm = append(mm, m)
 		}
 		return mm, nil
 	})
 
-	viewers := args.FirebaseViewerMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]projects.IAMMemberOutput, error) {
-		var mm []projects.IAMMemberOutput
+	viewers := args.FirebaseViewerMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]*projects.IAMMember, error) {
+		var mm []*projects.IAMMember
 		for _, member := range members {
 			m, err := addMemberRole(ctx, fpIam, projectId, member, "firebase.viewer")
 			if err != nil {
 				return nil, err
 			}
-			mm = append(mm, m.ToIAMMemberOutput())
+			mm = append(mm, m)
 		}
 		return mm, nil
 	})
@@ -100,8 +120,8 @@ func configureIAM(
 
 	if err := ctx.RegisterResourceOutputs(fpIam, pulumi.Map{
 		"defaultComputeSA":           pulumi.String(dsa.Member),
-		"computeServiceAccountRoles": csaOut,
-		"pubSubServiceAccountRoles":  psaOut,
+		"computeServiceAccountRoles": csa,
+		"pubSubServiceAccountRoles":  psa,
 		"adminMembers":               admins,
 		"viewerMembers":              viewers,
 		// "wait":             w,
@@ -117,20 +137,6 @@ func configureIAM(
 	}
 
 	return fpIam, nil
-}
-
-func addMemberRoles(ctx *pulumi.Context, parent pulumi.Resource, projectId, member string, roles pulumi.StringArrayInput) pulumi.Output {
-	return roles.ToStringArrayOutput().ApplyT(func(rr []string) ([]projects.IAMMemberOutput, error) {
-		var mm []projects.IAMMemberOutput
-		for _, role := range rr {
-			m, err := addMemberRole(ctx, parent, projectId, member, role)
-			if err != nil {
-				return nil, err
-			}
-			mm = append(mm, m.ToIAMMemberOutput())
-		}
-		return mm, nil
-	})
 }
 
 func addMemberRole(ctx *pulumi.Context, parent pulumi.Resource, projectId, member, role string) (*projects.IAMMember, error) {
