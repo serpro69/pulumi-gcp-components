@@ -106,7 +106,7 @@ func NewProject(
 func newIamMember(ctx *pulumi.Context, parent *Project, role string, members pulumi.StringArray, opts ...pulumi.ResourceOption) ([]*projects.IAMMember, error) {
 	mm := []*projects.IAMMember{}
 	for _, m := range members {
-		if res, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v", m, role),
+		if res, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v$%v", m, role),
 			&projects.IAMMemberArgs{
 				Project: parent.Main.ProjectId,
 				Role:    pulumi.String(fmt.Sprintf("roles/%s", role)),

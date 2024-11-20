@@ -90,7 +90,7 @@ func ActivateApis(
 	apis := args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) ([]*projects.Service, error) {
 		var ss []*projects.Service
 		for _, a := range apis {
-			s, err := projects.NewService(ctx, a,
+			s, err := projects.NewService(ctx, fmt.Sprintf("%s$%s", name, a),
 				&projects.ServiceArgs{
 					Project:                  args.ProjectId,
 					Service:                  pulumi.String(a),

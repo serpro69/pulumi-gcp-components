@@ -11,14 +11,16 @@ import (
 type ProjectArgs struct {
 	p.ProjectArgs
 	*projectIamArgs
+	*projectWebAppsArgs
 }
 
 func DefaultProjectArgs() *ProjectArgs {
 	dpa := p.DefaultProjectArgs()
 
 	return &ProjectArgs{
-		ProjectArgs:    *dpa,
-		projectIamArgs: defaultProjectIamArgs(),
+		ProjectArgs:        *dpa,
+		projectIamArgs:     defaultProjectIamArgs(),
+		projectWebAppsArgs: defaultProjectWebAppsArgs(),
 	}
 }
 
@@ -73,4 +75,25 @@ func defaultProjectIamArgs() *projectIamArgs {
 		FirebaseAdminMembers:       pulumi.ToStringArray(make([]string, 0)),
 		FirebaseViewerMembers:      pulumi.ToStringArray(make([]string, 0)),
 	}
+}
+
+type projectWebAppsArgs struct {
+	WebApps       pulumi.StringArray
+	CustomDomains pulumi.StringArrayMap
+}
+
+type ProjectWebAppsArgs struct {
+	*projectWebAppsArgs
+}
+
+func defaultProjectWebAppsArgs() *projectWebAppsArgs {
+	return &projectWebAppsArgs{
+		WebApps:       pulumi.ToStringArray(make([]string, 0)),
+		CustomDomains: pulumi.ToStringArrayMap(make(map[string][]string, 0)),
+	}
+}
+
+func (pa *ProjectArgs) GetProjectWebAppsArgs() *ProjectWebAppsArgs {
+	args := pa.projectWebAppsArgs
+	return &ProjectWebAppsArgs{args}
 }

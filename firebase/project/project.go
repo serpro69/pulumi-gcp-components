@@ -53,6 +53,11 @@ func NewFirebaseProject(
 			pulumi.DependsOn([]pulumi.Resource{p.ProjectServices}),
 			pulumi.DeletedWith(p.Project),
 		)
+		configureWebApps(ctx, name, projectId, args.GetProjectWebAppsArgs(),
+			pulumi.Parent(p),
+			pulumi.DependsOn([]pulumi.Resource{p.ProjectServices}),
+			pulumi.DeletedWith(p.Project),
+		)
 		return nil
 	})
 

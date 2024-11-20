@@ -140,7 +140,7 @@ func configureIAM(
 }
 
 func addMemberRole(ctx *pulumi.Context, parent pulumi.Resource, projectId, member, role string) (*projects.IAMMember, error) {
-	m, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v/%v", member, role),
+	m, err := projects.NewIAMMember(ctx, fmt.Sprintf("%v$%v", member, role),
 		&projects.IAMMemberArgs{
 			Project: pulumi.String(projectId),
 			Role:    pulumi.String(fmt.Sprintf("roles/%v", role)),

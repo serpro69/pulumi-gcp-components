@@ -7,4 +7,5 @@ const pkg = "firebase/project"
 var (
 	Project = utils.NewResourceType(pkg, "Project")
 	Iam     = utils.NewResourceType(pkg, "Iam")
+	WebApps = utils.NewResourceType(pkg, "WebApps")
 )
