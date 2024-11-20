@@ -1,9 +1,12 @@
 package project
 
 import (
+	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp"
+	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/firebase"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/serpro69/pulumi-google-components/firebase/project/util"
 	"github.com/serpro69/pulumi-google-components/firebase/project/vars"
+	"github.com/serpro69/pulumi-google-components/firebase/project/webapps"
 	"github.com/serpro69/pulumi-google-components/project"
 	"github.com/serpro69/pulumi-google-components/utils"
 )
@@ -13,6 +16,7 @@ type FirebaseProject struct {
 	pulumi.ResourceState
 
 	*project.Project
+	*webapps.FirebaseProjectWebApps
 }
 
 // NewProject creates a new Project in GCP
@@ -29,19 +33,19 @@ func NewFirebaseProject(
 	}
 
 	// Required for the project to display in any list of Firebase projects.
-	args.Labels = args.Labels.ToStringMapOutput().ApplyT(func(labels map[string]string) map[string]string {
+	args.Project.Labels = args.Project.Labels.ToStringMapOutput().ApplyT(func(labels map[string]string) map[string]string {
 		if l, found := labels["firebase"]; !found || l != "enabled" {
 			labels["firebase"] = "enabled"
 		}
 		return labels
 	}).(pulumi.StringMapInput)
 
-	args.ActivateApis = args.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) []string {
+	args.Project.ActivateApis = args.Project.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) []string {
 		apis = append(apis, services...)
 		return utils.Unique(apis)
 	}).(pulumi.StringArrayInput)
 
-	if p.Project, err = project.NewProject(ctx, name, &args.ProjectArgs, pulumi.Parent(p)); err != nil {
+	if p.Project, err = project.NewProject(ctx, name, args.Project, pulumi.Parent(p)); err != nil {
 		return nil, err
 	}
 
@@ -56,8 +60,43 @@ func NewFirebaseProject(
 		return nil
 	})
 
+	provider, err := gcp.NewProvider(ctx, name,
+		&gcp.ProviderArgs{
+			UserProjectOverride: pulumi.Bool(true),
+			Project:             p.Project.Main.ProjectId,
+			BillingProject:      p.Project.Main.ProjectId,
+		},
+		pulumi.Parent(p),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	fb, err := firebase.NewProject(ctx, name,
+		&firebase.ProjectArgs{
+			Project: p.Main.ProjectId,
+		},
+		pulumi.Parent(p),
+		pulumi.DependsOn([]pulumi.Resource{p.ProjectServices}),
+		pulumi.ProviderMap(map[string]pulumi.ProviderResource{"gcp": provider}),
+	)
+
+	p.FirebaseProjectWebApps, err = webapps.ConfigureWebApps(ctx, name, args.GetProjectWebAppsArgs(),
+		pulumi.Parent(p),
+		pulumi.DependsOn([]pulumi.Resource{fb}),
+		pulumi.DeletedWith(p.Project),
+		pulumi.ProviderMap(map[string]pulumi.ProviderResource{"gcp": provider}),
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := ctx.RegisterResourceOutputs(p, pulumi.Map{
 		"projectId": p.Project.Main.ProjectId.ToStringOutput(),
+		"firebase":  fb,
+		"apps":      p.Apps,
+		"config":    pulumi.All(p.Configs).ApplyT(func(all []interface{}) []interface{} { return all }),
+		"domains":   p.Domains,
 	}); err != nil {
 		return nil, err
 	}

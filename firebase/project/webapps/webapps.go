@@ -6,8 +6,8 @@ import (
 
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/firebase"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
-	"github.com/serpro69/pulumi-google-components/firebase/webapps/util"
-	"github.com/serpro69/pulumi-google-components/firebase/webapps/vars"
+	"github.com/serpro69/pulumi-google-components/firebase/project/util"
+	"github.com/serpro69/pulumi-google-components/firebase/project/vars"
 )
 
 type FirebaseProjectWebApps struct {
@@ -26,11 +26,11 @@ func ConfigureWebApps(
 ) (*FirebaseProjectWebApps, error) {
 	// Check for mandatory arguments
 	if args == nil || args.ProjectId == nil {
-		return nil, errors.New("ProjectId is mandatory")
+		return nil, errors.New("ProjectId is mandatory to configure firebase web apps")
 	}
 
-	fbWebApps := &FirebaseProjectWebApps{}
-	if err := ctx.RegisterComponentResource(util.WebApps.String(), name, fbWebApps, opts...); err != nil {
+	fb := &FirebaseProjectWebApps{}
+	if err := ctx.RegisterComponentResource(util.WebApps.String(), name, fb, opts...); err != nil {
 		return nil, err
 	}
 
@@ -43,7 +43,7 @@ func ConfigureWebApps(
 						Project:     pulumi.String(projectId),
 						DisplayName: pulumi.String(app),
 					},
-					pulumi.Parent(fbWebApps),
+					pulumi.Parent(fb),
 				)
 				if err != nil {
 					return nil, err
@@ -61,7 +61,7 @@ func ConfigureWebApps(
 					if err != nil {
 						return err
 					}
-					fbWebApps.Configs = append(fbWebApps.Configs, ac)
+					fb.Configs = append(fb.Configs, ac)
 					return nil
 				})
 
@@ -92,7 +92,7 @@ func ConfigureWebApps(
 							if err != nil {
 								return err
 							}
-							fbWebApps.Domains = append(fbWebApps.Domains, d)
+							fb.Domains = append(fb.Domains, d)
 							return nil
 						})
 					}
@@ -104,15 +104,15 @@ func ConfigureWebApps(
 		return webApps, nil
 	}).(firebase.WebAppArrayOutput)
 
-	fbWebApps.Apps = wa
+	fb.Apps = wa
 
-	if err := ctx.RegisterResourceOutputs(fbWebApps, pulumi.Map{
+	if err := ctx.RegisterResourceOutputs(fb, pulumi.Map{
 		"apps":    wa,
-		"configs": pulumi.All(fbWebApps.Configs).ApplyT(func(configs []interface{}) []interface{} { return configs }),
-		"domains": fbWebApps.Domains,
+		"configs": pulumi.All(fb.Configs).ApplyT(func(configs []interface{}) []interface{} { return configs }),
+		"domains": fb.Domains,
 	}); err != nil {
 		return nil, err
 	}
 
-	return fbWebApps, nil
+	return fb, nil
 }
