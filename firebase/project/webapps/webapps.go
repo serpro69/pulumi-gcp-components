@@ -13,9 +13,7 @@ import (
 type FirebaseProjectWebApps struct {
 	pulumi.ResourceState
 
-	Apps    firebase.WebAppArrayOutput
-	Configs []*firebase.GetWebAppConfigResult
-	Domains firebase.HostingCustomDomainArray
+	Apps firebase.WebAppArrayOutput
 }
 
 func ConfigureWebApps(
@@ -25,7 +23,7 @@ func ConfigureWebApps(
 	opts ...pulumi.ResourceOption,
 ) (*FirebaseProjectWebApps, error) {
 	// Check for mandatory arguments
-	if args == nil || args.ProjectId == nil {
+	if args == nil || args.Project == nil {
 		return nil, errors.New("ProjectId is mandatory to configure firebase web apps")
 	}
 
@@ -34,7 +32,7 @@ func ConfigureWebApps(
 		return nil, err
 	}
 
-	wa := args.ProjectId.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
+	fb.Apps = args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
 		webApps := args.WebApps.ToStringArrayOutput().ApplyT(func(apps []string) ([]*firebase.WebApp, error) {
 			var aa []*firebase.WebApp
 			for _, app := range apps {
@@ -49,21 +47,6 @@ func ConfigureWebApps(
 					return nil, err
 				}
 				aa = append(aa, a)
-
-				a.AppId.ApplyT(func(appId string) error {
-					ac, err := firebase.GetWebAppConfig(ctx,
-						&firebase.GetWebAppConfigArgs{
-							Project:  pulumi.StringRef(projectId),
-							WebAppId: appId,
-						},
-						pulumi.Parent(a),
-					)
-					if err != nil {
-						return err
-					}
-					fb.Configs = append(fb.Configs, ac)
-					return nil
-				})
 
 				hs, err := firebase.NewHostingSite(ctx, app,
 					&firebase.HostingSiteArgs{
@@ -80,7 +63,7 @@ func ConfigureWebApps(
 				args.CustomDomains.ToStringArrayMapOutput().ApplyT(func(domains map[string][]string) error {
 					for _, domain := range domains[app] {
 						hs.SiteId.ApplyT(func(siteId *string) error {
-							d, err := firebase.NewHostingCustomDomain(ctx, fmt.Sprintf("%s$%s", app, domain),
+							_, err := firebase.NewHostingCustomDomain(ctx, fmt.Sprintf("%s$%s", app, domain),
 								&firebase.HostingCustomDomainArgs{
 									Project:        a.Project,
 									SiteId:         pulumi.String(*siteId),
@@ -92,7 +75,6 @@ func ConfigureWebApps(
 							if err != nil {
 								return err
 							}
-							fb.Domains = append(fb.Domains, d)
 							return nil
 						})
 					}
@@ -104,12 +86,8 @@ func ConfigureWebApps(
 		return webApps, nil
 	}).(firebase.WebAppArrayOutput)
 
-	fb.Apps = wa
-
 	if err := ctx.RegisterResourceOutputs(fb, pulumi.Map{
-		"apps":    wa,
-		"configs": pulumi.All(fb.Configs).ApplyT(func(configs []interface{}) []interface{} { return configs }),
-		"domains": fb.Domains,
+		"apps": fb.Apps,
 	}); err != nil {
 		return nil, err
 	}
