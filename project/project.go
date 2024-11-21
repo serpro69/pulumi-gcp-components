@@ -18,7 +18,7 @@ type Project struct {
 
 	// TODO: can't use composition via `*organizations.Project` because it's in turn composed of `pulumi.CustomResourceState`, which contains `getProviders()` method that needs to be implemented?
 
-	Main *organizations.Project
+	Main *organizations.Project `pulumi:"project"`
 	*services.ProjectServices
 }
 

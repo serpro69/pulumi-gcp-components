@@ -16,7 +16,7 @@ import (
 type ProjectServices struct {
 	pulumi.ResourceState
 
-	Services projects.ServiceArrayOutput
+	Services projects.ServiceArrayOutput `pulumi:"services"`
 }
 
 func ActivateApis(

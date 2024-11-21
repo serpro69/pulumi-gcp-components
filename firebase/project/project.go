@@ -17,7 +17,8 @@ type FirebaseProject struct {
 
 	*project.Project
 	*webapps.FirebaseProjectWebApps
-	Gcp *gcp.Provider
+	FirebaseProject *firebase.Project `pulumi:"firebaseProject"`
+	Gcp             *gcp.Provider     `pulumi:"gcp"`
 }
 
 // NewProject creates a new Project in GCP
@@ -73,7 +74,7 @@ func NewFirebaseProject(
 		return nil, err
 	}
 
-	fb, err := firebase.NewProject(ctx, name,
+	p.FirebaseProject, err = firebase.NewProject(ctx, name,
 		&firebase.ProjectArgs{
 			Project: p.Main.ProjectId,
 		},
@@ -84,7 +85,7 @@ func NewFirebaseProject(
 
 	p.FirebaseProjectWebApps, err = webapps.ConfigureWebApps(ctx, name, args.GetProjectWebAppsArgs(),
 		pulumi.Parent(p),
-		pulumi.DependsOn([]pulumi.Resource{fb}),
+		pulumi.DependsOn([]pulumi.Resource{p.FirebaseProject}),
 		pulumi.DeletedWith(p.Project),
 		pulumi.ProviderMap(map[string]pulumi.ProviderResource{"gcp": p.Gcp}),
 	)
@@ -94,7 +95,7 @@ func NewFirebaseProject(
 
 	if err := ctx.RegisterResourceOutputs(p, pulumi.Map{
 		"projectId": p.Project.Main.ProjectId.ToStringOutput(),
-		"firebase":  fb,
+		"firebase":  p.FirebaseProject,
 		"apps":      p.Apps,
 		"provider":  p.Gcp,
 	}); err != nil {

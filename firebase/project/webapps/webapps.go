@@ -13,7 +13,7 @@ import (
 type FirebaseProjectWebApps struct {
 	pulumi.ResourceState
 
-	Apps firebase.WebAppArrayOutput
+	Apps firebase.WebAppMap `pulumi:"apps"`
 }
 
 func ConfigureWebApps(
@@ -27,12 +27,14 @@ func ConfigureWebApps(
 		return nil, errors.New("ProjectId is mandatory to configure firebase web apps")
 	}
 
-	fb := &FirebaseProjectWebApps{}
+	fb := &FirebaseProjectWebApps{
+		Apps: make(firebase.WebAppMap),
+	}
 	if err := ctx.RegisterComponentResource(util.WebApps.String(), name, fb, opts...); err != nil {
 		return nil, err
 	}
 
-	fb.Apps = args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
+	apps := args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
 		webApps := args.WebApps.ToStringArrayOutput().ApplyT(func(apps []string) ([]*firebase.WebApp, error) {
 			var aa []*firebase.WebApp
 			for _, app := range apps {
@@ -46,7 +48,7 @@ func ConfigureWebApps(
 				if err != nil {
 					return nil, err
 				}
-				aa = append(aa, a)
+				fb.Apps[app] = a
 
 				hs, err := firebase.NewHostingSite(ctx, app,
 					&firebase.HostingSiteArgs{
@@ -87,7 +89,7 @@ func ConfigureWebApps(
 	}).(firebase.WebAppArrayOutput)
 
 	if err := ctx.RegisterResourceOutputs(fb, pulumi.Map{
-		"apps": fb.Apps,
+		"apps": apps,
 	}); err != nil {
 		return nil, err
 	}
