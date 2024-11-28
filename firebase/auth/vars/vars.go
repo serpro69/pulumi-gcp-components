@@ -1,6 +1,7 @@
 package vars
 
 import (
+	"errors"
 	"log"
 
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/firebase"
@@ -15,69 +16,47 @@ type FirebaseAuthArgs struct {
 	// List of firebase applications to add to authorized domains
 	AuthorizedApps firebase.WebAppMap `pulumi:"authorizedApps"`
 
-	*projectIdpArgs
-}
-
-// DefaultFirebaseAuthArgs returns a default set of arguments for a FirebaseAuth
-func DefaultFirebaseAuthArgs() *FirebaseAuthArgs {
-	return &FirebaseAuthArgs{
-		AuthorizedApps: make(firebase.WebAppMap),
-		projectIdpArgs: defaultProjectIdpArgs(),
-	}
+	IdpArgs *identityplatform.ConfigArgs
 }
 
 // GetProjectServicesArgs returns the ProjectIdpArgs() for the FirebaseProject.
-func (pa *FirebaseAuthArgs) GetProjectIdpArgs() *ProjectIdpArgs {
-	args := pa.projectIdpArgs
+func (pa *FirebaseAuthArgs) GetIdpArgs() (*identityplatform.ConfigArgs, error) {
+	args := pa.IdpArgs
+	if args.Project == nil && pa.ProjectId == nil {
+		return nil, errors.New("ProjectId must be set via FirebaseAuthArgs or FirebaseAuthArgs.IdpArgs")
+	} else if args.Project == nil {
+		args.Project = pa.ProjectId
+	} else {
+		pa.ProjectId = args.Project.ToStringPtrOutput().ApplyT(func(project *string) string {
+			return *project
+		}).(pulumi.StringInput)
+	}
+
 	authorizedDomains := make(pulumi.StringArray, 0)
 	authorizedDomains = append(authorizedDomains, pulumi.String("localhost"))
-	authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s.web.app", pa.ProjectId))
-	authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s.firebaseapp.com", pa.ProjectId))
-	authorizedDomains = append(authorizedDomains, pa.AuthorizedDomains...)
+	authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s.web.app", args.Project))
+	authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s.firebaseapp.com", args.Project))
+
+	if args.AuthorizedDomains == nil {
+		args.AuthorizedDomains = pulumi.StringArray{}
+	}
+	args.AuthorizedDomains.ToStringArrayOutput().ApplyT(func(domains []string) error {
+		authorizedDomains = append(authorizedDomains, pulumi.ToStringArray(domains)...)
+		return nil
+	})
 
 	pa.AuthorizedApps.ToWebAppMapOutput().ApplyT(func(apps map[string]*firebase.WebApp) error {
 		for name := range apps {
 			log.Printf("apps: %v", name)
-			authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s-%s.web.app", name, pa.ProjectId))
-			authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s-%s.firebaseapp.com", name, pa.ProjectId))
+			authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s-%s.web.app", name, args.Project))
+			authorizedDomains = append(authorizedDomains, pulumi.Sprintf("%s-%s.firebaseapp.com", name, args.Project))
 		}
 		return nil
 	})
 
-	args.AuthorizedDomains = utils.Unique(authorizedDomains)
-	return &ProjectIdpArgs{args}
-}
+	args.AuthorizedDomains = authorizedDomains.ToStringArrayOutput().ApplyT(func(domains []string) []string {
+		return utils.Unique(domains)
+	}).(pulumi.StringArrayInput)
 
-type projectIdpArgs struct {
-	// Additional authorized domains for firebase hosting
-	AuthorizedDomains pulumi.StringArray `pulumi:"authorizedDomains"`
-
-	// OIDC client secret
-	OidcClientSecret pulumi.StringInput `pulumi:"oidcClientSecret"`
-
-	// OIDC client id
-	OidcClientId pulumi.StringInput `pulumi:"oidcClientId"`
-
-	// OIDC issuer URI
-	OidcIssuerUri pulumi.StringInput `pulumi:"oidcIssuerUri"`
-
-	SignIn *identityplatform.ConfigSignIn
-}
-
-// ProjectIamArgs represents the arguments for configuring IAM roles for a FirebaseProject.
-type ProjectIdpArgs struct {
-	*projectIdpArgs
-}
-
-func defaultProjectIdpArgs() *projectIdpArgs {
-	return &projectIdpArgs{
-		AuthorizedDomains: make(pulumi.StringArray, 0),
-		SignIn: &identityplatform.ConfigSignIn{
-			AllowDuplicateEmails: pulumi.BoolRef(false),
-			Email: &identityplatform.ConfigSignInEmail{
-				Enabled:          true,
-				PasswordRequired: pulumi.BoolRef(false),
-			},
-		},
-	}
+	return args, nil
 }

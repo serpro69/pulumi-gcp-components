@@ -39,14 +39,14 @@ type ProjectArgs struct {
 	// as it's required for many other services
 	DisableComputeEngine bool
 
-	*projectServicesArgs
+	*ProjectServicesArgs
 }
 
 /*
 ToProjectServicesArgs converts ProjectArgs to ProjectServicesArgs
 */
 func (pa *ProjectArgs) GetProjectServicesArgs() *ProjectServicesArgs {
-	psa := pa.projectServicesArgs
+	psa := pa.ProjectServicesArgs
 	if !pa.DisableComputeEngine {
 		psa.ActivateApis = psa.ActivateApis.ToStringArrayOutput().ApplyT(func(apis []string) []string {
 			if !slices.Contains(apis, "compute.googleapis.com") {
@@ -55,7 +55,7 @@ func (pa *ProjectArgs) GetProjectServicesArgs() *ProjectServicesArgs {
 			return apis
 		}).(pulumi.StringArrayInput)
 	}
-	return &ProjectServicesArgs{psa}
+	return psa
 }
 
 /*
@@ -73,11 +73,11 @@ func DefaultProjectArgs() *ProjectArgs {
 	return &ProjectArgs{
 		AutoCreateNetwork:    pulumi.Bool(false),
 		DisableComputeEngine: false,
-		projectServicesArgs:  defaultProjectServicesArgs(),
+		ProjectServicesArgs:  defaultProjectServicesArgs(),
 	}
 }
 
-type projectServicesArgs struct {
+type ProjectServicesArgs struct {
 	// Project ID to enable APIs on.
 	// Mandatory value. An error will be returned if ProjectId is not set.
 	ProjectId pulumi.StringInput
@@ -93,13 +93,9 @@ type projectServicesArgs struct {
 	DisableDependentServices bool
 }
 
-func defaultProjectServicesArgs() *projectServicesArgs {
-	return &projectServicesArgs{
+func defaultProjectServicesArgs() *ProjectServicesArgs {
+	return &ProjectServicesArgs{
 		DisableServicesOnDestroy: true,
 		DisableDependentServices: true,
 	}
-}
-
-type ProjectServicesArgs struct {
-	*projectServicesArgs
 }

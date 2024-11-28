@@ -5,6 +5,8 @@ import (
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/serpro69/pulumi-google-components/firebase/auth/util"
 	"github.com/serpro69/pulumi-google-components/firebase/auth/vars"
+	"github.com/serpro69/pulumi-google-components/project/services"
+	sv "github.com/serpro69/pulumi-google-components/project/vars"
 )
 
 // FirebaseProject is a struct that represents a project with enabled Firebase support in GCP
@@ -27,7 +29,28 @@ func NewFirebaseAuthConfig(
 		return nil, err
 	}
 
-	if a.IdpConfig, err = setupIdp(ctx, name, args.GetProjectIdpArgs(), pulumi.Parent(a)); err != nil {
+	idpArgs, err := args.GetIdpArgs()
+	if err != nil {
+		return nil, err
+	}
+
+	ss, err := services.ActivateApis(ctx, name,
+		&sv.ProjectServicesArgs{
+			ProjectId: idpArgs.Project.ToStringPtrOutput().ApplyT(
+				func(project *string) string { return *project },
+			).(pulumi.StringInput),
+			ActivateApis: pulumi.ToStringArray(apis),
+		},
+		pulumi.Parent(a),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if a.IdpConfig, err = setupIdp(ctx, name, idpArgs,
+		pulumi.Parent(a),
+		pulumi.DependsOn([]pulumi.Resource{ss}),
+	); err != nil {
 		return nil, err
 	}
 
@@ -40,48 +63,15 @@ func NewFirebaseAuthConfig(
 	return a, nil
 }
 
-var services = []string{
+var apis = []string{
 	"cloudbilling.googleapis.com",
 	"cloudresourcemanager.googleapis.com",
 	"serviceusage.googleapis.com",
 	"identitytoolkit.googleapis.com",
 }
 
-func setupIdp(ctx *pulumi.Context, name string, args *vars.ProjectIdpArgs, opts ...pulumi.ResourceOption) (*identityplatform.Config, error) {
-	signIn := &identityplatform.ConfigSignInArgs{}
-	if args.SignIn != nil {
-		if args.SignIn.Anonymous != nil {
-			signIn.Anonymous = &identityplatform.ConfigSignInAnonymousArgs{
-				Enabled: pulumi.Bool(args.SignIn.Anonymous.Enabled),
-			}
-		}
-		if args.SignIn.Email != nil {
-			signIn.Email = &identityplatform.ConfigSignInEmailArgs{
-				Enabled:          pulumi.Bool(args.SignIn.Email.Enabled),
-				PasswordRequired: pulumi.Bool(*args.SignIn.Email.PasswordRequired),
-			}
-		}
-		if args.SignIn.PhoneNumber != nil {
-			signIn.PhoneNumber = &identityplatform.ConfigSignInPhoneNumberArgs{
-				Enabled:          pulumi.Bool(args.SignIn.PhoneNumber.Enabled),
-				TestPhoneNumbers: pulumi.ToStringMap(args.SignIn.PhoneNumber.TestPhoneNumbers),
-			}
-		}
-		if args.SignIn.AllowDuplicateEmails != nil {
-			signIn.AllowDuplicateEmails = pulumi.Bool(*args.SignIn.AllowDuplicateEmails)
-		}
-	}
-	c := &identityplatform.ConfigArgs{
-		AuthorizedDomains: args.AuthorizedDomains,
-		SignIn:            signIn,
-		Client: &identityplatform.ConfigClientArgs{
-			Permissions: identityplatform.ConfigClientPermissionsArgs{
-				DisabledUserSignup:   pulumi.Bool(true), // TODO: make this configurable
-				DisabledUserDeletion: pulumi.Bool(true), // TODO: make this configurable
-			},
-		},
-	}
-	idp, err := identityplatform.NewConfig(ctx, name, c, opts...)
+func setupIdp(ctx *pulumi.Context, name string, args *identityplatform.ConfigArgs, opts ...pulumi.ResourceOption) (*identityplatform.Config, error) {
+	idp, err := identityplatform.NewConfig(ctx, name, args, opts...)
 	if err != nil {
 		return nil, err
 	}
