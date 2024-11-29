@@ -107,6 +107,7 @@ func NewFirebaseProject(
 		"iam":       iam,
 		"firebase":  p.FirebaseProject,
 		"apps":      p.Apps,
+		"domains":   p.Domains,
 		"provider":  p.Gcp,
 	}); err != nil {
 		return nil, err

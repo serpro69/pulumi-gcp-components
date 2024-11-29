@@ -13,7 +13,8 @@ import (
 type FirebaseProjectWebApps struct {
 	pulumi.ResourceState
 
-	Apps firebase.WebAppMap `pulumi:"apps"`
+	Apps    firebase.WebAppArrayOutput        `pulumi:"apps"`
+	Domains firebase.HostingCustomDomainArray `pulumi:"domains"`
 }
 
 func ConfigureWebApps(
@@ -27,14 +28,12 @@ func ConfigureWebApps(
 		return nil, errors.New("ProjectId is mandatory to configure firebase web apps")
 	}
 
-	fb := &FirebaseProjectWebApps{
-		Apps: make(firebase.WebAppMap),
-	}
+	fb := &FirebaseProjectWebApps{}
 	if err := ctx.RegisterComponentResource(util.WebApps.String(), name, fb, opts...); err != nil {
 		return nil, err
 	}
 
-	apps := args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
+	wa := args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
 		webApps := args.WebApps.ToStringArrayOutput().ApplyT(func(apps []string) ([]*firebase.WebApp, error) {
 			var aa []*firebase.WebApp
 			for _, app := range apps {
@@ -48,7 +47,7 @@ func ConfigureWebApps(
 				if err != nil {
 					return nil, err
 				}
-				fb.Apps[app] = a
+				aa = append(aa, a)
 
 				hs, err := firebase.NewHostingSite(ctx, app,
 					&firebase.HostingSiteArgs{
@@ -65,7 +64,7 @@ func ConfigureWebApps(
 				args.CustomDomains.ToStringArrayMapOutput().ApplyT(func(domains map[string][]string) error {
 					for _, domain := range domains[app] {
 						hs.SiteId.ApplyT(func(siteId *string) error {
-							_, err := firebase.NewHostingCustomDomain(ctx, fmt.Sprintf("%s$%s", app, domain),
+							d, err := firebase.NewHostingCustomDomain(ctx, fmt.Sprintf("%s$%s", app, domain),
 								&firebase.HostingCustomDomainArgs{
 									Project:        a.Project,
 									SiteId:         pulumi.String(*siteId),
@@ -77,6 +76,7 @@ func ConfigureWebApps(
 							if err != nil {
 								return err
 							}
+							fb.Domains = append(fb.Domains, d)
 							return nil
 						})
 					}
@@ -88,8 +88,11 @@ func ConfigureWebApps(
 		return webApps, nil
 	}).(firebase.WebAppArrayOutput)
 
+	fb.Apps = wa
+
 	if err := ctx.RegisterResourceOutputs(fb, pulumi.Map{
-		"apps": apps,
+		"apps":    wa,
+		"domains": fb.Domains,
 	}); err != nil {
 		return nil, err
 	}
