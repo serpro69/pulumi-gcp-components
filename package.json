@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc --outDir dist --declaration --sourceMap --declarationMap"
   },
-  "prepare": "npm run build",
+  "prepare": "npm install --ignore-scripts && npm run build",
   "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@types/node": "^18",
