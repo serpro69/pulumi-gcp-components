@@ -1,15 +1,8 @@
 {
   "name": "@serpro69/pulumi-google-components",
   "version": "0.0.1",
-  "keywords": [
-    "pulumi",
-    "gcp",
-    "google-cloud-platform",
-    "terraform"
-  ],
-  "homepage": "https://github.com/serpro69/pulumi-google-components",
-  "repository": "https://github.com/serpro69/pulumi-google-components",
-  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc --outDir dist --declaration --sourceMap --declarationMap"
   },
@@ -30,5 +23,14 @@
     "resource": true,
     "name": "pgc",
     "version": "0.0.1"
-  }
+  },
+  "homepage": "https://github.com/serpro69/pulumi-google-components",
+  "repository": "https://github.com/serpro69/pulumi-google-components",
+  "license": "MIT",
+  "keywords": [
+    "pulumi",
+    "gcp",
+    "google-cloud-platform",
+    "terraform"
+  ]
 }
