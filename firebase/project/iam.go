@@ -13,6 +13,7 @@ import (
 // FirebaseProjectIAM is a struct that represents IAM of a given firebase project
 type FirebaseProjectIam struct {
 	pulumi.ResourceState
+	Members projects.IAMMemberArrayOutput `pulumi:"members"`
 }
 
 func configureIAM(
@@ -38,7 +39,7 @@ func configureIAM(
 		return nil, err
 	}
 
-	csa := args.ComputeServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]*projects.IAMMember, error) {
+	fpIam.Members = args.ComputeServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]*projects.IAMMember, error) {
 		var mm []*projects.IAMMember
 		for _, role := range roles {
 			m, err := addMemberRole(ctx, fpIam, projectId, dsa.Member, role)
@@ -48,7 +49,9 @@ func configureIAM(
 			mm = append(mm, m)
 		}
 		return mm, nil
-	})
+	}).(projects.IAMMemberArrayOutput)
+
+	csa := fpIam.Members
 
 	psa := args.PubSubServiceAccountRoles.ToStringArrayOutput().ApplyT(func(roles []string) ([]*projects.IAMMember, error) {
 		sa := fmt.Sprintf("serviceAccount:service-%s@gcp-sa-pubsub.iam.gserviceaccount.com", projectNumber)
@@ -63,6 +66,12 @@ func configureIAM(
 		return mm, nil
 	})
 
+	fpIam.Members = fpIam.Members.ApplyT(func(members []*projects.IAMMember) projects.IAMMemberArrayOutput {
+		return psa.ApplyT(func(mm []*projects.IAMMember) []*projects.IAMMember {
+			return append(members, mm...)
+		}).(projects.IAMMemberArrayOutput)
+	}).(projects.IAMMemberArrayOutput)
+
 	admins := args.FirebaseAdminMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]*projects.IAMMember, error) {
 		var mm []*projects.IAMMember
 		for _, member := range members {
@@ -75,6 +84,12 @@ func configureIAM(
 		return mm, nil
 	})
 
+	fpIam.Members = fpIam.Members.ApplyT(func(members []*projects.IAMMember) projects.IAMMemberArrayOutput {
+		return admins.ApplyT(func(mm []*projects.IAMMember) []*projects.IAMMember {
+			return append(members, mm...)
+		}).(projects.IAMMemberArrayOutput)
+	}).(projects.IAMMemberArrayOutput)
+
 	viewers := args.FirebaseViewerMembers.ToStringArrayOutput().ApplyT(func(members []string) ([]*projects.IAMMember, error) {
 		var mm []*projects.IAMMember
 		for _, member := range members {
@@ -86,6 +101,12 @@ func configureIAM(
 		}
 		return mm, nil
 	})
+
+	fpIam.Members = fpIam.Members.ApplyT(func(members []*projects.IAMMember) projects.IAMMemberArrayOutput {
+		return viewers.ApplyT(func(mm []*projects.IAMMember) []*projects.IAMMember {
+			return append(members, mm...)
+		}).(projects.IAMMemberArrayOutput)
+	}).(projects.IAMMemberArrayOutput)
 
 	// // wait for iammember outputs before sleeping
 	// w := pulumi.All(csaOut, psaOut).ApplyT(func(ss []interface{}) (*time.Sleep, error) {
@@ -120,6 +141,7 @@ func configureIAM(
 
 	if err := ctx.RegisterResourceOutputs(fpIam, pulumi.Map{
 		"defaultComputeSA":           pulumi.String(dsa.Member),
+		"members":                    fpIam.Members,
 		"computeServiceAccountRoles": csa,
 		"pubSubServiceAccountRoles":  psa,
 		"adminMembers":               admins,

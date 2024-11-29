@@ -1,8 +1,11 @@
 package project
 
 import (
+	"errors"
+
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp"
 	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/firebase"
+	"github.com/pulumi/pulumi-gcp/sdk/v8/go/gcp/projects"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/serpro69/pulumi-google-components/firebase/project/util"
 	"github.com/serpro69/pulumi-google-components/firebase/project/vars"
@@ -51,16 +54,22 @@ func NewFirebaseProject(
 		return nil, err
 	}
 
-	pulumi.All(p.Project.Main.ProjectId, p.Project.Main.Number).ApplyT(func(all []interface{}) error {
+	iam, ok := pulumi.All(p.Project.Main.ProjectId, p.Project.Main.Number).ApplyT(func(all []interface{}) (projects.IAMMemberArrayInput, error) {
 		projectId := all[0].(string)
 		projectNumber := all[1].(string)
-		configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(),
+		iam, err := configureIAM(ctx, name, projectId, projectNumber, args.GetProjectIamArgs(),
 			pulumi.Parent(p),
 			pulumi.DependsOn([]pulumi.Resource{p.ProjectServices}),
 			pulumi.DeletedWith(p.Project),
 		)
-		return nil
-	})
+		if err != nil {
+			return nil, err
+		}
+		return iam.Members, nil
+	}).(projects.IAMMemberArrayOutput)
+	if !ok {
+		return nil, errors.New("Failed to configure IAM members")
+	}
 
 	p.Gcp, err = gcp.NewProvider(ctx, name,
 		&gcp.ProviderArgs{
@@ -95,6 +104,7 @@ func NewFirebaseProject(
 
 	if err := ctx.RegisterResourceOutputs(p, pulumi.Map{
 		"projectId": p.Project.Main.ProjectId.ToStringOutput(),
+		"iam":       iam,
 		"firebase":  p.FirebaseProject,
 		"apps":      p.Apps,
 		"provider":  p.Gcp,
