@@ -3,7 +3,7 @@ import * as gcp from "@pulumi/gcp";
 import * as time from "@pulumiverse/time";
 // tsserver: Cannot find name 'Project'.
 
-class ProjectArgs {
+export interface ProjectArgs {
   readonly billingAccount: pulumi.Input<string>;
   readonly folderId: pulumi.Input<string>;
   readonly projectId: pulumi.Input<string>;
@@ -13,8 +13,7 @@ class ProjectArgs {
   readonly deletionPolicy: pulumi.Input<string>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-class Project extends pulumi.ComponentResource {
+export class Project extends pulumi.ComponentResource {
   public readonly main: gcp.organizations.Project;
 
   constructor(
