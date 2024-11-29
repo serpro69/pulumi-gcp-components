@@ -13,8 +13,8 @@ import (
 type FirebaseProjectWebApps struct {
 	pulumi.ResourceState
 
-	Apps    firebase.WebAppArrayOutput        `pulumi:"apps"`
-	Domains firebase.HostingCustomDomainArray `pulumi:"domains"`
+	Apps    firebase.WebAppMapOutput              `pulumi:"apps"`
+	Domains firebase.HostingCustomDomainMapOutput `pulumi:"domains"`
 }
 
 func ConfigureWebApps(
@@ -33,11 +33,12 @@ func ConfigureWebApps(
 		return nil, err
 	}
 
-	wa := args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppArrayOutput, error) {
-		webApps := args.WebApps.ToStringArrayOutput().ApplyT(func(apps []string) ([]*firebase.WebApp, error) {
-			var aa []*firebase.WebApp
+	fb.Apps = args.Project.ToStringOutput().ApplyT(func(projectId string) (firebase.WebAppMapOutput, error) {
+		webApps := args.WebApps.ToStringArrayOutput().ApplyT(func(apps []string) (map[string]*firebase.WebApp, error) {
+			am := make(map[string]*firebase.WebApp, len(apps))
 			for _, app := range apps {
-				a, err := firebase.NewWebApp(ctx, app,
+				var err error
+				am[app], err = firebase.NewWebApp(ctx, app,
 					&firebase.WebAppArgs{
 						Project:     pulumi.String(projectId),
 						DisplayName: pulumi.String(app),
@@ -47,26 +48,26 @@ func ConfigureWebApps(
 				if err != nil {
 					return nil, err
 				}
-				aa = append(aa, a)
 
 				hs, err := firebase.NewHostingSite(ctx, app,
 					&firebase.HostingSiteArgs{
-						Project: a.Project,
-						AppId:   a.AppId,
+						Project: am[app].Project,
+						AppId:   am[app].AppId,
 						SiteId:  pulumi.Sprintf("%s-%s", app, projectId),
 					},
-					pulumi.Parent(a),
+					pulumi.Parent(am[app]),
 				)
 				if err != nil {
 					return nil, err
 				}
 
-				args.CustomDomains.ToStringArrayMapOutput().ApplyT(func(domains map[string][]string) error {
+				fb.Domains = args.CustomDomains.ToStringArrayMapOutput().ApplyT(func(domains map[string][]string) (map[string]*firebase.HostingCustomDomain, error) {
+					dm := make(map[string]*firebase.HostingCustomDomain, len(apps))
 					for _, domain := range domains[app] {
 						hs.SiteId.ApplyT(func(siteId *string) error {
-							d, err := firebase.NewHostingCustomDomain(ctx, fmt.Sprintf("%s$%s", app, domain),
+							dm[domain], err = firebase.NewHostingCustomDomain(ctx, fmt.Sprintf("%s$%s", app, domain),
 								&firebase.HostingCustomDomainArgs{
-									Project:        a.Project,
+									Project:        am[app].Project,
 									SiteId:         pulumi.String(*siteId),
 									CertPreference: pulumi.String("DEDICATED"),
 									CustomDomain:   pulumi.String(domain),
@@ -76,22 +77,19 @@ func ConfigureWebApps(
 							if err != nil {
 								return err
 							}
-							fb.Domains = append(fb.Domains, d)
 							return nil
 						})
 					}
-					return nil
-				})
+					return dm, nil
+				}).(firebase.HostingCustomDomainMapOutput)
 			}
-			return aa, nil
-		}).(firebase.WebAppArrayOutput)
+			return am, nil
+		}).(firebase.WebAppMapOutput)
 		return webApps, nil
-	}).(firebase.WebAppArrayOutput)
-
-	fb.Apps = wa
+	}).(firebase.WebAppMapOutput)
 
 	if err := ctx.RegisterResourceOutputs(fb, pulumi.Map{
-		"apps":    wa,
+		"apps":    fb.Apps,
 		"domains": fb.Domains,
 	}); err != nil {
 		return nil, err
