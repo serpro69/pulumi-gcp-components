@@ -11,9 +11,8 @@
   "repository": "https://github.com/serpro69/pulumi-google-components",
   "license": "MIT",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc --outDir dist --declaration --sourceMap --declarationMap"
   },
-  "prepare": "npm run build",
   "devDependencies": {
     "@eslint/js": "^9.15.0",
     "@types/node": "^18",
