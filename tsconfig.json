@@ -13,7 +13,6 @@
         "forceConsistentCasingInFileNames": true
     },
     "files": [
-        "index.ts",
-        "project/**/*.ts"
+        "index.ts"
     ]
 }
