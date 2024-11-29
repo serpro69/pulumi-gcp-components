@@ -1,5 +1,5 @@
 {
-  "name": "@serpro69/pulumi-google-components",
+  "name": "@serpro69/pulumi-gcp-components",
   "version": "0.0.1",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -24,8 +24,8 @@
     "name": "pgc",
     "version": "0.0.1"
   },
-  "homepage": "https://github.com/serpro69/pulumi-google-components",
-  "repository": "https://github.com/serpro69/pulumi-google-components",
+  "homepage": "https://github.com/serpro69/pulumi-gcp-components",
+  "repository": "https://github.com/serpro69/pulumi-gcp-components",
   "license": "MIT",
   "keywords": [
     "pulumi",
