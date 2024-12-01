@@ -1,6 +1,7 @@
 {
   "name": "@serpro69/pulumi-gcp-components",
   "version": "0.0.1",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -26,7 +27,10 @@
     "version": "0.0.1"
   },
   "homepage": "https://github.com/serpro69/pulumi-gcp-components",
-  "repository": "https://github.com/serpro69/pulumi-gcp-components",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/serpro69/pulumi-gcp-components.git"
+  },
   "license": "MIT",
   "keywords": [
     "pulumi",
